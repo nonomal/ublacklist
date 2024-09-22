@@ -1,40 +1,58 @@
-name: Deploy to GitHub Pages
+name: Deploy
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
 
 on:
-  push:
-    branches:
-      - master
-    paths:
-      - website/**
-      - '!website/README.md'
+  workflow_dispatch:
+    inputs:
+      chrome:
+        type: boolean
+        default: true
+        description: Chrome
+      firefox:
+        type: boolean
+        default: true
+        description: Firefox
 
 jobs:
   deploy:
-    name: Deploy to GitHub Pages
-
-    runs-on: ubuntu-latest
-
+    name: Deploy
+    runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v2
-        with:
-          node-version: '16'
-          cache: yarn
+      - name: Setup pnpm
+        uses: ./.github/actions/setup-pnpm
 
-      - name: Install packages
-        run: yarn install --immutable
+      - name: Build
+        run: |
+          pnpm build
+          pnpm build --browser firefox
+        env:
+          DROPBOX_API_KEY: ${{ secrets.DROPBOX_API_KEY }}
+          DROPBOX_API_SECRET: ${{ secrets.DROPBOX_API_SECRET }}
+          GOOGLE_DRIVE_API_KEY: ${{ secrets.GOOGLE_DRIVE_API_KEY }}
+          GOOGLE_DRIVE_API_SECRET: ${{ secrets.GOOGLE_DRIVE_API_SECRET }}
 
-      - name: Lint
-        run: yarn lint
-        working-directory: website
-
-      - name: Build website
-        run: yarn build
-        working-directory: website
-
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./website/build
+      - name: Deploy
+        run: pnpm semantic-release
+        env:
+          # Chrome
+          DEPLOY_CHROME: ${{ inputs.chrome }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          # Firefox
+          DEPLOY_FIREFOX: ${{ inputs.firefox }}
+          AMO_API_KEY: ${{ secrets.AMO_API_KEY }}
+          AMO_API_SECRET: ${{ secrets.AMO_API_SECRET }}
+          DROPBOX_API_KEY: ${{ secrets.DROPBOX_API_KEY }}
+          DROPBOX_API_SECRET: ${{ secrets.DROPBOX_API_SECRET }}
+          GOOGLE_DRIVE_API_KEY: ${{ secrets.GOOGLE_DRIVE_API_KEY }}
+          GOOGLE_DRIVE_API_SECRET: ${{ secrets.GOOGLE_DRIVE_API_SECRET }}
+          # GitHub
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

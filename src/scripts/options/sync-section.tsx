@@ -1,87 +1,102 @@
-import dayjs from 'dayjs';
-import dayjsDuration from 'dayjs/plugin/duration';
-import React, { useEffect, useState } from 'react';
-import { browser } from '../browser';
-import { Button, LinkButton } from '../components/button';
-import { CheckBox } from '../components/checkbox';
-import { FOCUS_END_CLASS, FOCUS_START_CLASS } from '../components/constants';
+import dayjs from "dayjs";
+import dayjsDuration from "dayjs/plugin/duration";
+import { useEffect, useState } from "react";
+import { browser } from "../browser.ts";
+import { Button, LinkButton } from "../components/button.tsx";
+import { CheckBox } from "../components/checkbox.tsx";
+import { FOCUS_END_CLASS, FOCUS_START_CLASS } from "../components/constants.ts";
 import {
   Dialog,
   DialogBody,
   DialogFooter,
   DialogHeader,
-  DialogProps,
+  type DialogProps,
   DialogTitle,
-} from '../components/dialog';
-import { Indent } from '../components/indent';
-import { ControlLabel, Label, LabelWrapper, SubLabel } from '../components/label';
-import { List, ListItem } from '../components/list';
-import { Portal } from '../components/portal';
-import { Row, RowItem } from '../components/row';
+} from "../components/dialog.tsx";
+import { Indent } from "../components/indent.tsx";
+import {
+  ControlLabel,
+  Label,
+  LabelWrapper,
+  SubLabel,
+} from "../components/label.tsx";
+import { List, ListItem } from "../components/list.tsx";
+import { Portal } from "../components/portal.tsx";
+import { Row, RowItem } from "../components/row.tsx";
 import {
   Section,
   SectionBody,
   SectionHeader,
   SectionItem,
   SectionTitle,
-} from '../components/section';
-import { Text } from '../components/text';
-import { TextArea } from '../components/textarea';
-import { usePrevious } from '../components/utilities';
-import { ALT_FLOW_REDIRECT_URL } from '../constants';
-import '../dayjs-locales';
-import { translate } from '../locales';
-import { addMessageListeners, sendMessage } from '../messages';
-import { supportedClouds } from '../supported-clouds';
-import { CloudId } from '../types';
-import { AltURL, isErrorResult, stringEntries } from '../utilities';
-import { FromNow } from './from-now';
-import { useOptionsContext } from './options-context';
-import { Select, SelectOption } from './select';
-import { SetBooleanItem } from './set-boolean-item';
-import { SetIntervalItem } from './set-interval-item';
+} from "../components/section.tsx";
+import { Text } from "../components/text.tsx";
+import { TextArea } from "../components/textarea.tsx";
+import { usePrevious } from "../components/utilities.ts";
+import "../dayjs-locales.ts";
+import { getWebsiteURL, translate } from "../locales.ts";
+import { addMessageListeners, sendMessage } from "../messages.ts";
+import { supportedClouds } from "../supported-clouds.ts";
+import type { CloudId } from "../types.ts";
+import { AltURL, isErrorResult, stringEntries } from "../utilities.ts";
+import { FromNow } from "./from-now.tsx";
+import { useOptionsContext } from "./options-context.tsx";
+import { Select, SelectOption } from "./select.tsx";
+import { SetBooleanItem } from "./set-boolean-item.tsx";
+import { SetIntervalItem } from "./set-interval-item.tsx";
 
 dayjs.extend(dayjsDuration);
 
-const TurnOnSyncDialog: React.VFC<
-  { setSyncCloudId: React.Dispatch<React.SetStateAction<CloudId | false | null>> } & DialogProps
+const altFlowRedirectURL = getWebsiteURL("/callback");
+
+const TurnOnSyncDialog: React.FC<
+  {
+    setSyncCloudId: React.Dispatch<
+      React.SetStateAction<CloudId | false | null>
+    >;
+  } & DialogProps
 > = ({ close, open, setSyncCloudId }) => {
   const {
     platformInfo: { os },
   } = useOptionsContext();
 
   const [state, setState] = useState({
-    phase: 'none' as 'none' | 'auth' | 'auth-alt' | 'conn' | 'conn-alt',
-    selectedCloudId: 'googleDrive' as CloudId,
+    phase: "none" as "none" | "auth" | "auth-alt" | "conn" | "conn-alt",
+    selectedCloudId: "googleDrive" as CloudId,
     useAltFlow: false,
-    authCode: '',
+    authCode: "",
   });
   const prevOpen = usePrevious(open);
   if (open && !prevOpen) {
-    state.phase = 'none';
-    state.selectedCloudId = 'googleDrive';
+    state.phase = "none";
+    state.selectedCloudId = "googleDrive";
     state.useAltFlow = false;
-    state.authCode = '';
+    state.authCode = "";
   }
-  const forceAltFlow = supportedClouds[state.selectedCloudId].shouldUseAltFlow(os);
+  const forceAltFlow =
+    supportedClouds[state.selectedCloudId].shouldUseAltFlow(os);
 
   return (
     <Dialog aria-labelledby="turnOnSyncDialogTitle" close={close} open={open}>
       <DialogHeader>
         <DialogTitle id="turnOnSyncDialogTitle">
-          {translate('options_turnOnSyncDialog_title')}
+          {translate("options_turnOnSyncDialog_title")}
         </DialogTitle>
       </DialogHeader>
       <DialogBody>
         <Row>
           <RowItem>
             <Select
-              className={state.phase === 'none' ? FOCUS_START_CLASS : ''}
-              disabled={state.phase !== 'none'}
+              className={state.phase === "none" ? FOCUS_START_CLASS : ""}
+              disabled={state.phase !== "none"}
               value={state.selectedCloudId}
-              onChange={e =>
-                setState(s => ({ ...s, selectedCloudId: e.currentTarget.value as CloudId }))
-              }
+              onChange={(e) => {
+                const { value } = e.currentTarget;
+                setState((s) => ({
+                  ...s,
+                  selectedCloudId: value as CloudId,
+                }));
+              }}
             >
               {stringEntries(supportedClouds).map(([id, cloud]) => (
                 <SelectOption key={id} value={id}>
@@ -94,7 +109,10 @@ const TurnOnSyncDialog: React.VFC<
         <Row>
           <RowItem expanded>
             <Text>
-              {translate(supportedClouds[state.selectedCloudId].messageNames.syncDescription)}
+              {translate(
+                supportedClouds[state.selectedCloudId].messageNames
+                  .syncDescription,
+              )}
             </Text>
           </RowItem>
         </Row>
@@ -103,16 +121,22 @@ const TurnOnSyncDialog: React.VFC<
             <Indent>
               <CheckBox
                 checked={forceAltFlow || state.useAltFlow}
-                disabled={state.phase !== 'none' || forceAltFlow}
+                disabled={state.phase !== "none" || forceAltFlow}
                 id="useAltFlow"
-                onChange={e => setState(s => ({ ...s, useAltFlow: e.currentTarget.checked }))}
+                onChange={(e) => {
+                  const { checked } = e.currentTarget;
+                  setState((s) => ({
+                    ...s,
+                    useAltFlow: checked,
+                  }));
+                }}
               />
             </Indent>
           </RowItem>
           <RowItem expanded>
-            <LabelWrapper disabled={state.phase !== 'none' || forceAltFlow}>
+            <LabelWrapper disabled={state.phase !== "none" || forceAltFlow}>
               <ControlLabel for="useAltFlow">
-                {translate('options_turnOnSyncDialog_useAltFlow')}
+                {translate("options_turnOnSyncDialog_useAltFlow")}
               </ControlLabel>
             </LabelWrapper>
           </RowItem>
@@ -122,30 +146,31 @@ const TurnOnSyncDialog: React.VFC<
             <RowItem expanded>
               <Text>
                 {translate(
-                  'options_turnOnSyncDialog_altFlowDescription',
-                  new AltURL(ALT_FLOW_REDIRECT_URL).host,
+                  "options_turnOnSyncDialog_altFlowDescription",
+                  new AltURL(altFlowRedirectURL).host,
                 )}
               </Text>
             </RowItem>
           </Row>
         )}
-        {state.phase === 'auth-alt' || state.phase === 'conn-alt' ? (
+        {state.phase === "auth-alt" || state.phase === "conn-alt" ? (
           <Row>
             <RowItem expanded>
               <LabelWrapper fullWidth>
                 <ControlLabel for="authCode">
-                  {translate('options_turnOnSyncDialog_altFlowAuthCodeLabel')}
+                  {translate("options_turnOnSyncDialog_altFlowAuthCodeLabel")}
                 </ControlLabel>
               </LabelWrapper>
               <TextArea
                 breakAll
-                className={state.phase === 'auth-alt' ? FOCUS_START_CLASS : ''}
-                disabled={state.phase !== 'auth-alt'}
+                className={state.phase === "auth-alt" ? FOCUS_START_CLASS : ""}
+                disabled={state.phase !== "auth-alt"}
                 id="authCode"
                 rows={2}
                 value={state.authCode}
-                onChange={e => {
-                  setState(s => ({ ...s, authCode: e.currentTarget.value }));
+                onChange={(e) => {
+                  const { value } = e.currentTarget;
+                  setState((s) => ({ ...s, authCode: value }));
                 }}
               />
             </RowItem>
@@ -157,75 +182,90 @@ const TurnOnSyncDialog: React.VFC<
           <RowItem>
             <Button
               className={
-                state.phase === 'auth' || state.phase === 'conn' || state.phase === 'conn-alt'
+                state.phase === "auth" ||
+                state.phase === "conn" ||
+                state.phase === "conn-alt"
                   ? `${FOCUS_START_CLASS} ${FOCUS_END_CLASS}`
-                  : state.phase === 'auth-alt' && !state.authCode
-                  ? FOCUS_END_CLASS
-                  : ''
+                  : state.phase === "auth-alt" && !state.authCode
+                    ? FOCUS_END_CLASS
+                    : ""
               }
               onClick={close}
             >
-              {translate('cancelButton')}
+              {translate("cancelButton")}
             </Button>
           </RowItem>
           <RowItem>
             <Button
               className={
-                state.phase === 'none' || (state.phase === 'auth-alt' && state.authCode)
+                state.phase === "none" ||
+                (state.phase === "auth-alt" && state.authCode)
                   ? FOCUS_END_CLASS
-                  : ''
+                  : ""
               }
-              disabled={!(state.phase === 'none' || (state.phase === 'auth-alt' && state.authCode))}
+              disabled={
+                !(
+                  state.phase === "none" ||
+                  (state.phase === "auth-alt" && state.authCode)
+                )
+              }
               primary
               onClick={() => {
                 void (async () => {
                   let useAltFlow: boolean;
                   let authCode: string;
-                  if (state.phase === 'auth-alt') {
+                  if (state.phase === "auth-alt") {
                     useAltFlow = true;
                     authCode = state.authCode;
                   } else {
                     const cloud = supportedClouds[state.selectedCloudId];
                     useAltFlow = forceAltFlow || state.useAltFlow;
-                    setState(s => ({ ...s, phase: useAltFlow ? 'auth-alt' : 'auth' }));
+                    setState((s) => ({
+                      ...s,
+                      phase: useAltFlow ? "auth-alt" : "auth",
+                    }));
                     try {
                       const granted = await browser.permissions.request({
                         origins: [
                           ...cloud.hostPermissions,
-                          ...(useAltFlow ? [ALT_FLOW_REDIRECT_URL] : []),
+                          ...(useAltFlow ? [altFlowRedirectURL] : []),
                         ],
                       });
                       if (!granted) {
-                        throw new Error('Not granted');
+                        throw new Error("Not granted");
                       }
-                      authCode = (await cloud.authorize(useAltFlow)).authorizationCode;
+                      authCode = (await cloud.authorize(useAltFlow))
+                        .authorizationCode;
                     } catch {
-                      setState(s => ({ ...s, phase: 'none' }));
+                      setState((s) => ({ ...s, phase: "none" }));
                       return;
                     }
                   }
-                  setState(s => ({ ...s, phase: useAltFlow ? 'conn-alt' : 'conn' }));
+                  setState((s) => ({
+                    ...s,
+                    phase: useAltFlow ? "conn-alt" : "conn",
+                  }));
                   try {
                     const connected = await sendMessage(
-                      'connect-to-cloud',
+                      "connect-to-cloud",
                       state.selectedCloudId,
                       authCode,
                       useAltFlow,
                     );
                     if (!connected) {
-                      throw new Error('Not connected');
+                      throw new Error("Not connected");
                     }
                   } catch {
                     return;
                   } finally {
-                    setState(s => ({ ...s, phase: 'none' }));
+                    setState((s) => ({ ...s, phase: "none" }));
                   }
                   setSyncCloudId(state.selectedCloudId);
                   close();
                 })();
               }}
             >
-              {translate('options_turnOnSyncDialog_turnOnSyncButton')}
+              {translate("options_turnOnSyncDialog_turnOnSyncButton")}
             </Button>
           </RowItem>
         </Row>
@@ -234,7 +274,7 @@ const TurnOnSyncDialog: React.VFC<
   );
 };
 
-const TurnOnSync: React.VFC<{
+const TurnOnSync: React.FC<{
   syncCloudId: CloudId | false | null;
   setSyncCloudId: React.Dispatch<React.SetStateAction<CloudId | false | null>>;
 }> = ({ syncCloudId, setSyncCloudId }) => {
@@ -245,12 +285,16 @@ const TurnOnSync: React.VFC<{
         <RowItem expanded>
           {syncCloudId ? (
             <LabelWrapper>
-              <Label>{translate(supportedClouds[syncCloudId].messageNames.syncTurnedOn)}</Label>
+              <Label>
+                {translate(
+                  supportedClouds[syncCloudId].messageNames.syncTurnedOn,
+                )}
+              </Label>
             </LabelWrapper>
           ) : (
             <LabelWrapper>
-              <Label>{translate('options_syncFeature')}</Label>
-              <SubLabel>{translate('options_syncFeatureDescription')}</SubLabel>
+              <Label>{translate("options_syncFeature")}</Label>
+              <SubLabel>{translate("options_syncFeatureDescription")}</SubLabel>
             </LabelWrapper>
           )}
         </RowItem>
@@ -258,11 +302,11 @@ const TurnOnSync: React.VFC<{
           {syncCloudId ? (
             <Button
               onClick={() => {
-                void sendMessage('disconnect-from-cloud');
+                void sendMessage("disconnect-from-cloud");
                 setSyncCloudId(false);
               }}
             >
-              {translate('options_turnOffSync')}
+              {translate("options_turnOffSync")}
             </Button>
           ) : (
             <Button
@@ -271,7 +315,7 @@ const TurnOnSync: React.VFC<{
                 setTurnOnSyncDialogOpen(true);
               }}
             >
-              {translate('options_turnOnSync')}
+              {translate("options_turnOnSync")}
             </Button>
           )}
         </RowItem>
@@ -287,7 +331,7 @@ const TurnOnSync: React.VFC<{
   );
 };
 
-const SyncNow: React.VFC<{ syncCloudId: CloudId | false | null }> = props => {
+const SyncNow: React.FC<{ syncCloudId: CloudId | false | null }> = (props) => {
   const {
     initialItems: { syncResult: initialSyncResult },
   } = useOptionsContext();
@@ -297,43 +341,49 @@ const SyncNow: React.VFC<{ syncCloudId: CloudId | false | null }> = props => {
   useEffect(
     () =>
       addMessageListeners({
-        syncing: () => {
+        syncing: (id) => {
+          if (id !== props.syncCloudId) {
+            return;
+          }
           setUpdated(false);
           setSyncing(true);
         },
-        synced: (result, updated) => {
+        synced: (id, result, updated) => {
+          if (id !== props.syncCloudId) {
+            return;
+          }
           setSyncResult(result);
           setUpdated(updated);
           setSyncing(false);
         },
       }),
-    [],
+    [props.syncCloudId],
   );
   return (
     <SectionItem>
       <Row>
         <RowItem expanded>
           <LabelWrapper>
-            <Label>{translate('options_syncResult')}</Label>
+            <Label>{translate("options_syncResult")}</Label>
             <SubLabel>
               {syncing ? (
-                translate('options_syncRunning')
+                translate("options_syncRunning")
               ) : !props.syncCloudId || !syncResult ? (
-                translate('options_syncNever')
+                translate("options_syncNever")
               ) : isErrorResult(syncResult) ? (
-                translate('error', syncResult.message)
+                translate("error", syncResult.message)
               ) : (
                 <FromNow time={dayjs(syncResult.timestamp)} />
               )}
               {updated ? (
                 <>
-                  {' '}
+                  {" "}
                   <LinkButton
                     onClick={() => {
                       window.location.reload();
                     }}
                   >
-                    {translate('options_syncReloadButton')}
+                    {translate("options_syncReloadButton")}
                   </LinkButton>
                 </>
               ) : null}
@@ -344,10 +394,10 @@ const SyncNow: React.VFC<{ syncCloudId: CloudId | false | null }> = props => {
           <Button
             disabled={syncing || !props.syncCloudId}
             onClick={() => {
-              void sendMessage('sync');
+              void sendMessage("sync");
             }}
           >
-            {translate('options_syncNowButton')}
+            {translate("options_syncNowButton")}
           </Button>
         </RowItem>
       </Row>
@@ -355,12 +405,12 @@ const SyncNow: React.VFC<{ syncCloudId: CloudId | false | null }> = props => {
   );
 };
 
-const SyncCategories: React.VFC<{ disabled: boolean }> = ({ disabled }) => (
+const SyncCategories: React.FC<{ disabled: boolean }> = ({ disabled }) => (
   <SectionItem>
     <Row>
       <RowItem expanded>
         <LabelWrapper>
-          <Label>{translate('options_syncCategories')}</Label>
+          <Label>{translate("options_syncCategories")}</Label>
         </LabelWrapper>
       </RowItem>
     </Row>
@@ -374,28 +424,28 @@ const SyncCategories: React.VFC<{ disabled: boolean }> = ({ disabled }) => (
             <SetBooleanItem
               disabled={disabled}
               itemKey="syncBlocklist"
-              label={translate('options_syncBlocklist')}
+              label={translate("options_syncBlocklist")}
             />
           </ListItem>
           <ListItem>
             <SetBooleanItem
               disabled={disabled}
               itemKey="syncGeneral"
-              label={translate('options_syncGeneral')}
+              label={translate("options_syncGeneral")}
             />
           </ListItem>
           <ListItem>
             <SetBooleanItem
               disabled={disabled}
               itemKey="syncAppearance"
-              label={translate('options_syncAppearance')}
+              label={translate("options_syncAppearance")}
             />
           </ListItem>
           <ListItem>
             <SetBooleanItem
               disabled={disabled}
               itemKey="syncSubscriptions"
-              label={translate('options_syncSubscriptions')}
+              label={translate("options_syncSubscriptions")}
             />
           </ListItem>
         </List>
@@ -404,25 +454,17 @@ const SyncCategories: React.VFC<{ disabled: boolean }> = ({ disabled }) => (
   </SectionItem>
 );
 
-export const SyncSection: React.VFC = () => {
+export const SyncSection: React.FC = () => {
   const {
     initialItems: { syncCloudId: initialSyncCloudId },
-    /* #if FIREFOX
-    platformInfo: { os },
-    */
-    // #endif
   } = useOptionsContext();
   const [syncCloudId, setSyncCloudId] = useState(initialSyncCloudId);
-  /* #if FIREFOX
-  if (os === 'android') {
-    return null;
-  }
-  */
-  // #endif
   return (
     <Section aria-labelledby="syncSectionTitle" id="sync">
       <SectionHeader>
-        <SectionTitle id="syncSectionTitle">{translate('options_syncTitle')}</SectionTitle>
+        <SectionTitle id="syncSectionTitle">
+          {translate("options_syncTitle")}
+        </SectionTitle>
       </SectionHeader>
       <SectionBody>
         <TurnOnSync setSyncCloudId={setSyncCloudId} syncCloudId={syncCloudId} />
@@ -432,7 +474,7 @@ export const SyncSection: React.VFC = () => {
           <SetIntervalItem
             disabled={!syncCloudId}
             itemKey="syncInterval"
-            label={translate('options_syncInterval')}
+            label={translate("options_syncInterval")}
             valueOptions={[5, 10, 15, 30, 60, 120]}
           />
         </SectionItem>
